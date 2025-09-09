@@ -2,8 +2,9 @@
   "name": "changes-uploader",
   "displayName": "Changes Uploader",
   "description": "VS Code Git 变更上传插件，用于管理Git仓库中已修改文件的上传与跟踪",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "notell",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -27,7 +28,7 @@
         {
           "id": "changes-uploader-sidebar",
           "title": "Changes Uploader",
-          "icon": "resources/icon.svg"
+          "icon": "$(cloud-upload)"
         }
       ]
     },
@@ -82,7 +83,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",

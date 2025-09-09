@@ -7,7 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.lcov
+
+# Production
 dist
 dist-ssr
 *.local
@@ -24,12 +33,7 @@ dist-ssr
 *.sw?
 
 # TypeScript
-out
 *.tsbuildinfo
-
-# Testing
-coverage
-*.lcov
 
 # Environment variables
 .env
@@ -38,4 +42,10 @@ coverage
 .env.test.local
 .env.production.local
 
-*.vsix
+# Temporary files
+*.tmp
+*.temp
+.cache
+
+# OS generated files
+Thumbs.db
