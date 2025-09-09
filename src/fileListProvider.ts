@@ -2,14 +2,14 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import Client from 'ssh2-sftp-client';
-import { FileTracker, TrackedFile } from './fileTracker';
+import { FileTracker, ITrackedFile } from './fileTracker';
 
 /**
  * 表示树视图中的文件项
  */
 export class FileItem extends vscode.TreeItem {
   constructor(
-    public readonly trackedFile: TrackedFile,
+    public readonly trackedFile: ITrackedFile,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState
   ) {
     super(trackedFile.fileName, collapsibleState);
@@ -36,14 +36,14 @@ export class FileItem extends vscode.TreeItem {
    */
   private getFileIconPath(): vscode.ThemeIcon {
     switch (this.trackedFile.status) {
-      case 'staged':
-        return new vscode.ThemeIcon('check-circle');
-      case 'unstaged':
-        return new vscode.ThemeIcon('circle');
-      case 'untracked':
-        return new vscode.ThemeIcon('question');
-      default:
-        return new vscode.ThemeIcon('file');
+    case 'staged':
+      return new vscode.ThemeIcon('check-circle');
+    case 'unstaged':
+      return new vscode.ThemeIcon('circle');
+    case 'untracked':
+      return new vscode.ThemeIcon('question');
+    default:
+      return new vscode.ThemeIcon('file');
     }
   }
 
@@ -59,15 +59,18 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
   
   private fileTracker: FileTracker;
   private context: vscode.ExtensionContext;
+  private outputChannel: vscode.OutputChannel;
 
   /**
    * 构造函数
    * @param fileTracker 文件跟踪器实例
    * @param context VS Code扩展上下文
+   * @param outputChannel VS Code输出通道
    */
-  constructor(fileTracker: FileTracker, context: vscode.ExtensionContext) {
+  constructor(fileTracker: FileTracker, context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.fileTracker = fileTracker;
     this.context = context;
+    this.outputChannel = outputChannel;
     
     // 添加文件状态变化监听器
     this.fileTracker.addStatusListener(() => {
@@ -81,6 +84,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
    * @returns 树项数据
    */
   public getTreeItem(element: FileItem): vscode.TreeItem {
+    this.outputChannel.appendLine(`获取树项: ${element.trackedFile.fileName} 状态: ${element.trackedFile.status}`);
     return element;
   }
 
@@ -108,6 +112,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
    * 刷新树视图
    */
   public refresh(): void {
+    this.outputChannel.appendLine(`刷新树视图，当前跟踪的文件数量: ${this.fileTracker.getTrackedFiles().length}`);
     this._onDidChangeTreeData.fire();
   }
 
@@ -121,6 +126,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
       const filePath = typeof file === 'string' ? file : file.trackedFile.filePath;
       
       if (!fs.existsSync(filePath)) {
+        this.outputChannel.appendLine(`文件不存在: ${filePath}`);
         vscode.window.showErrorMessage(`文件不存在: ${filePath}`);
         return;
       }
@@ -133,6 +139,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
       // 验证配置
       if (!sshConfigPath || !remoteHost || !remoteRootPath) {
+        this.outputChannel.appendLine('请先配置SSH连接信息');
         vscode.window.showErrorMessage('请先配置SSH连接信息');
         vscode.commands.executeCommand('workbench.action.openSettings', 'changesUploader');
         return;
@@ -150,14 +157,15 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
         try {
           await this.sftpUploadFile(sshConfigPath, remoteHost, filePath, remoteRootPath);
           progress.report({ increment: 100 });
+          this.outputChannel.appendLine(`文件上传成功: ${path.basename(filePath)}`);
           vscode.window.showInformationMessage(`文件上传成功: ${path.basename(filePath)}`);
         } catch (error) {
-          console.error('文件上传失败:', error);
+          this.outputChannel.appendLine(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
           vscode.window.showErrorMessage(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
         }
       });
     } catch (error) {
-      console.error('上传文件时发生错误:', error);
+      this.outputChannel.appendLine(`上传文件时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
       vscode.window.showErrorMessage(`上传文件时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
@@ -169,6 +177,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     const trackedFiles = this.fileTracker.getTrackedFiles();
     
     if (trackedFiles.length === 0) {
+      this.outputChannel.appendLine('没有可上传的文件');
       vscode.window.showInformationMessage('没有可上传的文件');
       return;
     }
@@ -181,6 +190,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
     // 验证配置
     if (!sshConfigPath || !remoteHost || !remoteRootPath) {
+      this.outputChannel.appendLine('请先配置SSH连接信息');
       vscode.window.showErrorMessage('请先配置SSH连接信息');
       vscode.commands.executeCommand('workbench.action.openSettings', 'changesUploader');
       return;
@@ -219,7 +229,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
             errorCount++;
           }
         } catch (error) {
-          console.error(`上传文件失败: ${file.filePath}`, error);
+          this.outputChannel.appendLine(`上传文件失败: ${file.filePath} - ${error instanceof Error ? error.message : '未知错误'}`);
           errorCount++;
         }
       }
@@ -227,8 +237,10 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
     // 显示上传结果
     if (cancelled) {
+      this.outputChannel.appendLine(`上传已取消，已成功上传 ${successCount} 个文件，失败 ${errorCount} 个文件`);
       vscode.window.showInformationMessage(`上传已取消，已成功上传 ${successCount} 个文件，失败 ${errorCount} 个文件`);
     } else {
+      this.outputChannel.appendLine(`上传完成，共上传 ${successCount} 个文件，失败 ${errorCount} 个文件`);
       vscode.window.showInformationMessage(`上传完成，共上传 ${successCount} 个文件，失败 ${errorCount} 个文件`);
     }
   }
@@ -252,9 +264,11 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     if (confirm === '确定') {
       const success = this.fileTracker.removeFile(filePath);
       if (success) {
+        this.outputChannel.appendLine(`已移除文件: ${fileName}`);
         vscode.window.showInformationMessage(`已移除文件: ${fileName}`);
         this.refresh();
       } else {
+        this.outputChannel.appendLine(`移除文件失败: ${fileName}`);
         vscode.window.showErrorMessage(`移除文件失败: ${fileName}`);
       }
     }
@@ -334,7 +348,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
       return config;
     } catch (error) {
-      console.error('读取SSH配置文件失败:', error);
+      this.outputChannel.appendLine(`读取SSH配置文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
       throw new Error(`读取SSH配置文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }

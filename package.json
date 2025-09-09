@@ -37,7 +37,13 @@
         {
           "type": "tree",
           "id": "changes-uploader.fileList",
-          "name": "已修改文件"
+          "name": "已修改文件",
+          "toolbar": [
+            {
+              "command": "changes-uploader.refreshFileList",
+              "tooltip": "刷新文件列表"
+            }
+          ]
         }
       ]
     },
@@ -53,6 +59,25 @@
       {
         "command": "changes-uploader.removeFile",
         "title": "永久移除"
+      },
+      {
+        "command": "changes-uploader.refreshFileList",
+        "title": "刷新文件列表",
+        "category": "Changes Uploader",
+        "icon": {
+          "light": "$(refresh)",
+          "dark": "$(refresh)"
+        }
+      },
+      {
+        "command": "changes-uploader.addTestFile",
+        "title": "添加测试文件",
+        "category": "Changes Uploader"
+      },
+      {
+        "command": "changes-uploader.showDebugInfo",
+        "title": "显示调试信息",
+        "category": "Changes Uploader"
       }
     ],
     "configuration": {

@@ -6,7 +6,7 @@ import * as path from 'path';
 /**
  * 表示一个被跟踪的文件信息
  */
-export interface TrackedFile {
+export interface ITrackedFile {
   /** 文件完整路径 */
   filePath: string;
   /** 文件名 */
@@ -22,16 +22,19 @@ export interface TrackedFile {
  */
 export class FileTracker {
   private context: vscode.ExtensionContext;
-  private trackedFiles: TrackedFile[] = [];
-  private fileStatusListeners: ((files: TrackedFile[]) => void)[] = [];
+  private trackedFiles: ITrackedFile[] = [];
+  private fileStatusListeners: ((files: ITrackedFile[]) => void)[] = [];
   private gitRepositories: Map<string, string> = new Map();
+  private outputChannel: vscode.OutputChannel;
 
   /**
    * 构造函数
    * @param context VS Code扩展上下文
+   * @param outputChannel VS Code输出通道
    */
-  constructor(context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
     this.context = context;
+    this.outputChannel = outputChannel;
     
     // 从存储中恢复跟踪的文件列表
     this.loadTrackedFiles();
@@ -44,7 +47,7 @@ export class FileTracker {
    * 添加文件状态变化监听器
    * @param listener 监听器函数
    */
-  public addStatusListener(listener: (files: TrackedFile[]) => void): void {
+  public addStatusListener(listener: (files: ITrackedFile[]) => void): void {
     this.fileStatusListeners.push(listener);
   }
 
@@ -52,7 +55,7 @@ export class FileTracker {
    * 移除文件状态变化监听器
    * @param listener 监听器函数
    */
-  public removeStatusListener(listener: (files: TrackedFile[]) => void): void {
+  public removeStatusListener(listener: (files: ITrackedFile[]) => void): void {
     const index = this.fileStatusListeners.indexOf(listener);
     if (index > -1) {
       this.fileStatusListeners.splice(index, 1);
@@ -63,7 +66,7 @@ export class FileTracker {
    * 获取当前跟踪的所有文件
    * @returns 跟踪文件数组
    */
-  public getTrackedFiles(): TrackedFile[] {
+  public getTrackedFiles(): ITrackedFile[] {
     return [...this.trackedFiles];
   }
 
@@ -101,21 +104,45 @@ export class FileTracker {
     try {
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders) {
+        this.outputChannel.appendLine('没有工作区文件夹');
+        vscode.window.showInformationMessage('Changes Uploader: 没有打开的工作区文件夹');
         return;
       }
 
+      this.outputChannel.appendLine(`找到 ${workspaceFolders.length} 个工作区文件夹`);
+      let foundAnyRepo = false;
+      
       for (const folder of workspaceFolders) {
+        this.outputChannel.appendLine(`检查文件夹: ${folder.uri.fsPath}`);
         const repoRoot = await this.findGitRepositoryRoot(folder.uri.fsPath);
         if (repoRoot) {
+          foundAnyRepo = true;
+          this.outputChannel.appendLine(`找到Git仓库: ${repoRoot}`);
           this.gitRepositories.set(folder.uri.fsPath, repoRoot);
           await this.scanGitStatus(repoRoot);
+        } else {
+          this.outputChannel.appendLine(`未在 ${folder.uri.fsPath} 找到Git仓库`);
         }
+      }
+
+      if (!foundAnyRepo) {
+        this.outputChannel.appendLine('未找到任何Git仓库');
+        vscode.window.showInformationMessage('Changes Uploader: 未在工作区找到Git仓库');
+      }
+
+      this.outputChannel.appendLine(`跟踪的文件数量: ${this.trackedFiles.length}`);
+      if (this.trackedFiles.length > 0) {
+        this.outputChannel.appendLine(`跟踪的文件: ${this.trackedFiles.map(f => f.fileName).join(', ')}`);
+        vscode.window.showInformationMessage(`Changes Uploader: 已找到 ${this.trackedFiles.length} 个修改的文件`);
+      } else {
+        vscode.window.showInformationMessage('Changes Uploader: 当前没有修改的文件');
       }
 
       this.saveTrackedFiles();
       this.notifyStatusChange();
     } catch (error) {
-      console.error('更新文件状态失败:', error);
+      this.outputChannel.appendLine(`更新文件状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      vscode.window.showErrorMessage(`更新文件状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
@@ -127,6 +154,9 @@ export class FileTracker {
     try {
       const result = await this.executeGitCommand(repoRoot, ['status', '--porcelain']);
       const lines = result.stdout.split('\n').filter(line => line.trim() !== '');
+
+      // 存储扫描到的文件路径，用于后续清理
+      const scannedFilePaths = new Set<string>();
 
       for (const line of lines) {
         const statusCode = line.substring(0, 2).trim();
@@ -160,10 +190,16 @@ export class FileTracker {
               lastModified: fileStats.mtimeMs
             });
           }
+          
+          // 添加到扫描集合
+          scannedFilePaths.add(filePath);
         }
       }
+      
     } catch (error) {
-      console.error('扫描Git状态失败:', error);
+      this.outputChannel.appendLine(`扫描Git状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      // 显示错误信息给用户
+      vscode.window.showErrorMessage(`扫描Git状态失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
@@ -188,11 +224,22 @@ export class FileTracker {
    * @returns 命令执行结果
    */
   private executeGitCommand(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+    // 确保命令正确格式化，处理路径中的空格
+    const command = `git ${args.map(arg => {
+      // 如果参数包含空格，用双引号包裹
+      return arg.includes(' ') ? `"${arg}"` : arg;
+    }).join(' ')}`;
+    
+    this.outputChannel.appendLine(`执行Git命令: ${command} (在目录: ${cwd})`);
+    
     return new Promise((resolve, reject) => {
-      child_process.exec(`git ${args.join(' ')}`, { cwd }, (error, stdout, stderr) => {
+      child_process.exec(command, { cwd }, (error, stdout, stderr) => {
         if (error) {
+          this.outputChannel.appendLine(`Git命令执行失败: ${error.message}`);
+          this.outputChannel.appendLine(`错误输出: ${stderr}`);
           reject(error);
         } else {
+          this.outputChannel.appendLine(`Git命令执行成功: ${stdout}`);
           resolve({ stdout, stderr });
         }
       });
@@ -219,7 +266,7 @@ export class FileTracker {
   private async handleGitCommit(): Promise<void> {
     try {
       // 获取所有Git仓库
-      for (const [_, repoRoot] of this.gitRepositories) {
+      for (const [, repoRoot] of this.gitRepositories) {
         // 获取最近一次提交的文件列表
         const result = await this.executeGitCommand(repoRoot, ['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']);
         const committedFiles = result.stdout.split('\n').filter(line => line.trim() !== '').map(file => path.join(repoRoot, file));
@@ -231,7 +278,7 @@ export class FileTracker {
       this.saveTrackedFiles();
       this.notifyStatusChange();
     } catch (error) {
-      console.error('处理Git提交事件失败:', error);
+      this.outputChannel.appendLine(`处理Git提交事件失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
@@ -246,7 +293,7 @@ export class FileTracker {
    * 从存储中加载跟踪的文件列表
    */
   private loadTrackedFiles(): void {
-    const storedFiles = this.context.globalState.get<TrackedFile[]>('trackedFiles') || [];
+    const storedFiles = this.context.globalState.get<ITrackedFile[]>('trackedFiles') || [];
     this.trackedFiles = storedFiles;
   }
 

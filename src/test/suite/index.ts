@@ -1,6 +1,6 @@
 import * as path from 'path';
 // 使用require导入Mocha，因为它不是ES模块
-const Mocha = require('mocha');
+const mochaLib = require('mocha');
 import * as glob from 'glob';
 
 /**
@@ -8,7 +8,7 @@ import * as glob from 'glob';
  */
 export function run(): Promise<void> {
   // 创建Mocha测试实例
-  const mocha = new Mocha({
+  const mocha = new mochaLib({
     ui: 'tdd',
     color: true,
     timeout: 30000 // 30秒超时
