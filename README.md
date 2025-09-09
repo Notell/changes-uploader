@@ -1,4 +1,4 @@
-# changes-uploder
+# changes-uploader
 
 一款VS Code侧边栏插件，用于管理Git仓库中已修改文件的上传与跟踪，提供便捷的文件上传功能。
 
@@ -25,14 +25,14 @@
 ## 安装方法
 
 1. 在VS Code中打开扩展面板（Ctrl+Shift+X）
-2. 搜索"changes-uploder"
+2. 搜索"changes-uploader"
 3. 点击"安装"按钮
 4. 安装完成后，侧边栏会出现插件图标
 
 ## 配置说明
 
 1. 点击VS Code设置图标 -> 设置
-2. 搜索"changes-uploder"配置项
+2. 搜索"changes-uploader"配置项
 3. 配置以下信息：
    - SSH Config 文件地址
    - 远程服务器host

@@ -1,0 +1,57 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- 渐变定义 -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007ACC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#005A9B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="128" height="128" rx="20" fill="url(#bgGradient)"/>
+  
+  <!-- Git符号 (简化的分支图标) -->
+  <g fill="#FFFFFF">
+    <!-- 主干 -->
+    <circle cx="32" cy="45" r="5"/>
+    <circle cx="32" cy="65" r="5"/>
+    <circle cx="32" cy="85" r="5"/>
+    <line x1="32" y1="50" x2="32" y2="80" stroke="#FFFFFF" stroke-width="4"/>
+    
+    <!-- 分支 -->
+    <circle cx="52" cy="55" r="5"/>
+    <circle cx="52" cy="75" r="5"/>
+    <path d="M32 55 Q42 50 52 55" stroke="#FFFFFF" stroke-width="4" fill="none"/>
+    <line x1="52" y1="60" x2="52" y2="70" stroke="#FFFFFF" stroke-width="4"/>
+  </g>
+  
+  <!-- 上传箭头 -->
+  <g fill="url(#arrowGradient)">
+    <!-- 箭头 -->
+    <polygon points="80,75 75,85 85,85" />
+    <rect x="78" y="45" width="4" height="30"/>
+    <polygon points="80,35 70,50 90,50" />
+  </g>
+  
+  <!-- 服务器/云图标 -->
+  <g fill="#FFFFFF" opacity="0.9">
+    <ellipse cx="95" cy="40" rx="12" ry="8"/>
+    <ellipse cx="90" cy="35" rx="8" ry="6"/>
+    <ellipse cx="100" cy="35" rx="6" ry="4"/>
+  </g>
+  
+  <!-- 文件图标 -->
+  <g fill="#FFFFFF" opacity="0.7">
+    <rect x="20" y="100" width="12" height="16" rx="2"/>
+    <rect x="35" y="100" width="12" height="16" rx="2"/>
+    <rect x="50" y="100" width="12" height="16" rx="2"/>
+    <!-- 文件折角 -->
+    <polygon points="29,100 29,105 32,100" fill="#E0E0E0"/>
+    <polygon points="44,100 44,105 47,100" fill="#E0E0E0"/>
+    <polygon points="59,100 59,105 62,100" fill="#E0E0E0"/>
+  </g>
+</svg>

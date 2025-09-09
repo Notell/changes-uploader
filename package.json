@@ -1,0 +1,104 @@
+{
+  "name": "changes-uploader",
+  "displayName": "Changes Uploader",
+  "description": "VS Code Git 变更上传插件，用于管理Git仓库中已修改文件的上传与跟踪",
+  "version": "0.0.1",
+  "publisher": "notell",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/changes-uploader.git"
+  },
+  "activationEvents": [
+    "onView:changes-uploader.fileList",
+    "onCommand:changes-uploader.uploadAllFiles",
+    "onCommand:changes-uploader.uploadFile",
+    "onCommand:changes-uploader.removeFile"
+  ],
+  "main": "out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "changes-uploader-sidebar",
+          "title": "Changes Uploader",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "changes-uploader-sidebar": [
+        {
+          "type": "tree",
+          "id": "changes-uploader.fileList",
+          "name": "已修改文件"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "changes-uploader.uploadAllFiles",
+        "title": "上传全部文件"
+      },
+      {
+        "command": "changes-uploader.uploadFile",
+        "title": "上传文件"
+      },
+      {
+        "command": "changes-uploader.removeFile",
+        "title": "永久移除"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Changes Uploader 配置",
+      "properties": {
+        "changesUploader.sshConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "SSH 配置文件路径"
+        },
+        "changesUploader.remoteHost": {
+          "type": "string",
+          "default": "",
+          "description": "远程服务器主机名"
+        },
+        "changesUploader.remoteRootPath": {
+          "type": "string",
+          "default": "",
+          "description": "远程服务器上传文件根目录路径"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^16.11.7",
+    "@types/ssh2-sftp-client": "^9.0.5",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.27.0",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "ssh2": "^1.10.0",
+    "ssh2-sftp-client": "^8.0.0"
+  }
+}
