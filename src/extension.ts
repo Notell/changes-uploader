@@ -23,29 +23,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // 创建文件列表提供者实例
     const fileListProvider = new FileListProvider(fileTracker, context, outputChannel);
 
-    // 注册侧边栏视图
-    vscode.window.registerTreeDataProvider('changes-uploader.fileList', fileListProvider);
-
-    // 创建树视图实例以便监听事件
-    const treeView = vscode.window.createTreeView('changes-uploader.fileList', {
-      treeDataProvider: fileListProvider
-    });
-    // 添加到上下文订阅
-    context.subscriptions.push(treeView);
-    context.subscriptions.push(
-      treeView.onDidChangeVisibility(e => {
-        outputChannel.appendLine(`侧边栏可见性变化: ${e.visible}`);
-        if (e.visible && !loading) {
-          try {
-            fileTracker.updateFileStatus();
-            loading = true;
-          } finally {
-            loading = false;
-          }
-        }
-      })
-    );
-
     // 注册命令
     const commands = [
       vscode.commands.registerCommand('changes-uploader.uploadAllFiles', () => {
@@ -75,8 +52,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // 将命令添加到订阅
     commands.forEach(cmd => context.subscriptions.push(cmd));
 
+    // 注册侧边栏视图
+    vscode.window.registerTreeDataProvider('changes-uploader.fileList', fileListProvider);
+
+    // 创建树视图实例以便监听事件
+    const treeView = vscode.window.createTreeView('changes-uploader.fileList', {
+      treeDataProvider: fileListProvider
+    });
+    // 添加到上下文订阅
+    // context.subscriptions.push(treeView);
+    context.subscriptions.push(
+      treeView.onDidChangeVisibility(e => {
+        outputChannel.appendLine(`侧边栏可见性变化: ${e.visible}`);
+        if (e.visible && !loading) {
+          try {
+            fileTracker.updateFileStatus();
+            loading = true;
+          } finally {
+            loading = false;
+          }
+        }
+      })
+    );
+
     // 初始化文件状态
     fileTracker.updateFileStatus();
+    fileListProvider.refresh('initialLoad');
 
     outputChannel.appendLine('插件激活成功');
     console.log('Changes Uploader 插件已激活');

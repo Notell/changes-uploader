@@ -16,7 +16,10 @@
     "url": "https://github.com/example/changes-uploader.git"
   },
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:changes-uploader-sidebar",
+    "onCommand:changes-uploader.refreshFileList",
+    "onCommand:changes-uploader.uploadAllFiles"
   ],
   "main": "out/extension.js",
   "contributes": {
@@ -24,7 +27,7 @@
       "activitybar": [
         {
           "id": "changes-uploader-sidebar",
-          "title": "Changes Uploader",
+          "title": "文件上传",
           "icon": "$(cloud-upload)"
         }
       ]
@@ -34,20 +37,29 @@
         {
           "type": "tree",
           "id": "changes-uploader.fileList",
-          "name": "已修改文件",
-          "toolbar": [
-            {
-              "command": "changes-uploader.refreshFileList",
-              "tooltip": "刷新文件列表"
-            }
-          ]
+          "name": ""
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "changes-uploader.refreshFileList",
+          "when": "view == changes-uploader.fileList",
+          "group": "navigation@1"
+        },
+        {
+          "command": "changes-uploader.uploadAllFiles",
+          "when": "view == changes-uploader.fileList",
+          "group": "navigation@2"
         }
       ]
     },
     "commands": [
       {
         "command": "changes-uploader.uploadAllFiles",
-        "title": "上传全部文件"
+        "title": "上传全部文件",
+          "icon": "$(cloud-upload)"
       },
       {
         "command": "changes-uploader.uploadFile",
@@ -60,11 +72,7 @@
       {
         "command": "changes-uploader.refreshFileList",
         "title": "刷新文件列表",
-        "category": "Changes Uploader",
-        "icon": {
-          "light": "$(refresh)",
-          "dark": "$(refresh)"
-        }
+          "icon": "$(refresh)"
       }
     ],
     "configuration": {

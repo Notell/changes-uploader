@@ -84,7 +84,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
    * @returns 树项数据
    */
   public getTreeItem(element: FileItem): vscode.TreeItem {
-    this.outputChannel.appendLine(`获取树项: ${element.trackedFile.fileName} 状态: ${element.trackedFile.status}`);
+    // this.outputChannel.appendLine(`获取树项: ${element.trackedFile.fileName} 状态: ${element.trackedFile.status}`);
     return element;
   }
 
