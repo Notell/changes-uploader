@@ -363,7 +363,7 @@ describe('FileListProvider', () => {
 
       // 设置文件系统mock
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue('User test\nPort 22\nIdentityFile /path/to/key');
+      mockFs.readFileSync.mockReturnValue('Host example.com\nUser test\nPort 22\nIdentityFile /path/to/key');
     });
 
     it('应该成功上传单个文件', async (): Promise<void> => {
