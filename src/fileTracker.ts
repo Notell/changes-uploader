@@ -106,6 +106,8 @@ export class FileTracker {
       if (!workspaceFolders) {
         this.outputChannel.appendLine('没有工作区文件夹');
         vscode.window.showInformationMessage('Changes Uploader: 没有打开的工作区文件夹');
+        // 即使没有工作区文件夹，也要通知状态变化，确保面板能正确刷新
+        this.notifyStatusChange();
         return;
       }
 
@@ -135,6 +137,7 @@ export class FileTracker {
         this.outputChannel.appendLine(`跟踪的文件: ${this.trackedFiles.map(f => f.fileName).join(', ')}`);
         vscode.window.showInformationMessage(`Changes Uploader: 已找到 ${this.trackedFiles.length} 个修改的文件`);
       } else {
+        // 即使没有跟踪的文件，也要显示信息
         vscode.window.showInformationMessage('Changes Uploader: 当前没有修改的文件');
       }
 

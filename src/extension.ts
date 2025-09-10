@@ -3,7 +3,7 @@ import { FileTracker } from './fileTracker';
 import { FileListProvider } from './fileListProvider';
 
 // 创建输出通道
-const outputChannel = vscode.window.createOutputChannel('Changes Uploader');
+const outputChannel = vscode.window.createOutputChannel('changes-uploader');
 
 /**
  * 插件激活函数
@@ -12,6 +12,9 @@ const outputChannel = vscode.window.createOutputChannel('Changes Uploader');
 export function activate(context: vscode.ExtensionContext): void {
   console.log('Changes Uploader 插件已激活');
   outputChannel.appendLine('Changes Uploader 插件已激活');
+  
+  // 添加一条测试日志，验证输出通道是否正常工作
+  outputChannel.appendLine('测试消息：输出通道已正确配置并正在工作');
 
   // 创建文件跟踪器实例
   const fileTracker = new FileTracker(context, outputChannel);

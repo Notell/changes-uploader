@@ -30,6 +30,7 @@ out
 # Testing
 coverage
 *.lcov
+.vscode-test
 
 # Environment variables
 .env

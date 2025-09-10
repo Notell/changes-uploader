@@ -8,7 +8,12 @@ jest.mock('vscode', () => ({
     createOutputChannel: jest.fn().mockReturnValue({
       appendLine: jest.fn(),
       dispose: jest.fn()
-    })
+    }),
+    showErrorMessage: jest.fn().mockImplementation((message: string) => {
+      void message; // ESLint: mark as intentionally unused
+      return Promise.resolve(undefined);
+    }),
+    showInformationMessage: jest.fn()
   },
   workspace: {
     workspaceFolders: [],
@@ -40,6 +45,22 @@ describe('FileTracker', () => {
   beforeEach(() => {
     // 重置所有mock
     jest.clearAllMocks();
+
+    // 创建模拟的工作区文件夹
+    const mockWorkspaceFolder = {
+      uri: {
+        scheme: 'file',
+        authority: '',
+        path: '/path/to/workspace',
+        query: '',
+        fragment: '',
+        fsPath: '/path/to/workspace',
+        with: jest.fn().mockReturnThis(),
+        toJSON: jest.fn().mockReturnValue({})
+      },
+      name: 'test-workspace',
+      index: 0
+    };
 
     // 创建模拟的扩展上下文
     mockContext = {
@@ -144,6 +165,12 @@ describe('FileTracker', () => {
         canSendRequest: jest.fn()
       }
     };
+
+    // 设置模拟的工作区文件夹
+    Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+      value: [mockWorkspaceFolder],
+      writable: true
+    });
 
     // 创建FileTracker实例
     fileTracker = new FileTracker(mockContext, mockOutputChannel);
@@ -260,12 +287,15 @@ describe('FileTracker', () => {
       // 使用类型断言访问私有属性
       (fileTracker as unknown as { trackedFiles: ITrackedFile[] }).trackedFiles = [testFile];
 
-      // 移除文件
-      fileTracker.removeFile('/path/to/file1.txt');
-
       // 检查文件是否被跟踪
       expect(fileTracker.isFileTracked('/path/to/file1.txt')).toBe(true);
       expect(fileTracker.isFileTracked('/path/to/file2.txt')).toBe(false);
+      
+      // 移除文件
+      fileTracker.removeFile('/path/to/file1.txt');
+      
+      // 检查文件是否还被跟踪
+      expect(fileTracker.isFileTracked('/path/to/file1.txt')).toBe(false);
     });
   });
 
@@ -352,15 +382,10 @@ describe('FileTracker', () => {
     });
 
     it('在非Git仓库中应该返回null', async (): Promise<void> => {
-      // 添加缺失的变量定义
-      const mockRepoRoot = '/path/to/repo';
-      const mockGitStatus = ' M src/test.ts\nA  src/newfile.ts\n?? src/untracked.ts';
-      
       mockExec.mockImplementation((cmd: string, opts: import('child_process').ExecOptions | null | undefined, callback?: (error: import('child_process').ExecException | null, stdout: string, stderr: string) => void) => {
         if (cmd.includes('rev-parse')) {
-          callback?.(null, mockRepoRoot, '');
-        } else if (cmd.includes('status')) {
-          callback?.(null, mockGitStatus, '');
+          // 在非Git仓库中，rev-parse命令应该返回错误
+          callback?.(new Error('fatal: not a git repository'), '', '');
         } else {
           callback?.(new Error('未知命令'), '', '');
         }
