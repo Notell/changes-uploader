@@ -37,6 +37,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         fileListProvider.removeFile(file);
       }),
 
+      vscode.commands.registerCommand('changes-uploader.deleteRemoteFile', (file) => {
+        fileListProvider.deleteRemoteFile(file);
+      }),
+
       vscode.commands.registerCommand('changes-uploader.refreshFileList', async () => {
         try {
           vscode.window.showInformationMessage('正在刷新文件列表...');

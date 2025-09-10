@@ -10,6 +10,8 @@ import { FileTracker, ITrackedFile } from './fileTracker';
  * 表示树视图中的文件项
  */
 export class FileItem extends vscode.TreeItem {
+  public fileStatus: string;
+
   constructor(
     public readonly trackedFile: ITrackedFile,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState
@@ -19,8 +21,11 @@ export class FileItem extends vscode.TreeItem {
     // 设置工具提示为完整文件路径
     this.tooltip = trackedFile.filePath;
 
-    // 设置上下文值以便在package.json中针对不同类型的节点定义命令
-    this.contextValue = 'fileItem';
+    // 设置基础上下文值以便在package.json中针对不同类型的节点定义命令
+    this.contextValue = `fileItem-${trackedFile.status}`;
+
+    // 添加状态特定的上下文值，用于更精确的条件判断
+    this.fileStatus = trackedFile.status;
 
     // 设置图标根据文件状态
     this.iconPath = this.getFileIconPath();
@@ -508,6 +513,151 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     } catch (error) {
       this.outputChannel.appendLine(`读取SSH配置文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
       throw new Error(`读取SSH配置文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
+
+  /**
+   * 删除远程文件
+   * @param file 文件项
+   */
+  public async deleteRemoteFile(file: FileItem): Promise<void> {
+    // 只对未跟踪的文件提供删除远程文件功能
+    if (file.trackedFile.status !== 'untracked') {
+      vscode.window.showErrorMessage('只有未跟踪的文件才能删除远程文件');
+      return;
+    }
+
+    const fileName = file.trackedFile.fileName;
+    
+    // 确认操作
+    const confirm = await vscode.window.showWarningMessage(
+      `确定要删除远程文件 "${fileName}" 吗？此操作不可撤销。`,
+      { modal: true },
+      '确定',
+      '取消'
+    );
+    
+    if (confirm !== '确定') {
+      return;
+    }
+
+    try {
+      // 获取配置信息
+      const config = vscode.workspace.getConfiguration('changesUploader');
+      const sshConfigPath = config.get<string>('sshConfigPath', '');
+      const remoteHost = config.get<string>('remoteHost', '');
+      const remoteRootPath = config.get<string>('remoteRootPath', '');
+
+      // 验证配置
+      if (!sshConfigPath || !remoteHost || !remoteRootPath) {
+        this.outputChannel.appendLine('请先配置SSH连接信息');
+        vscode.window.showErrorMessage('请先配置SSH连接信息');
+        vscode.commands.executeCommand('workbench.action.openSettings', 'changesUploader');
+        return;
+      }
+
+      // 开始删除文件
+      const progressOptions: vscode.ProgressOptions = {
+        location: vscode.ProgressLocation.Notification,
+        title: `正在删除远程文件: ${fileName}`
+      };
+
+      await vscode.window.withProgress(progressOptions, async (progress) => {
+        progress.report({ increment: 0 });
+
+        try {
+          await this.sftpDeleteFile(sshConfigPath, remoteHost, file.trackedFile.filePath, remoteRootPath);
+          progress.report({ increment: 100 });
+          this.outputChannel.appendLine(`远程文件删除成功: ${fileName}`);
+          vscode.window.showInformationMessage(`远程文件删除成功: ${fileName}`);
+        } catch (error) {
+          this.outputChannel.appendLine(`远程文件删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
+          vscode.window.showErrorMessage(`远程文件删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        }
+      });
+    } catch (error) {
+      this.outputChannel.appendLine(`删除远程文件时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
+      vscode.window.showErrorMessage(`删除远程文件时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
+
+  /**
+   * 使用SFTP删除远程文件
+   * @param sshConfigPath SSH配置文件路径
+   * @param remoteHost 远程主机名
+   * @param localFilePath 本地文件路径
+   * @param remoteRootPath 远程根目录路径
+   */
+  private async sftpDeleteFile(sshConfigPath: string, remoteHost: string, localFilePath: string, remoteRootPath: string): Promise<void> {
+    let sftp: Client | null = null;
+    let client: Client | null = null;
+    try {
+      // 读取SSH配置
+      const config = await this.readSSHConfig(sshConfigPath, remoteHost);
+
+      // 验证配置是否完整
+      if (!config.user) {
+        throw new Error('SSH配置缺少用户名');
+      }
+
+      if (!config.privateKey) {
+        throw new Error('SSH配置缺少私钥文件路径');
+      }
+
+      if (!fs.existsSync(config.privateKey)) {
+        throw new Error(`私钥文件不存在: ${config.privateKey}`);
+      }
+
+      // 使用HostName（如果存在），否则使用传入的remoteHost
+      const actualHost = config.hostName || remoteHost;
+
+      this.outputChannel.appendLine(`开始连接到远程服务器: ${remoteHost} (实际地址: ${actualHost})`);
+      this.outputChannel.appendLine(`连接参数: host=${actualHost}, port=${config.port || 22}, username=${config.user}`);
+
+      // 建立SFTP连接
+      client = new Client();
+      await client.connect({
+        host: actualHost,
+        port: config.port || 22,
+        username: config.user,
+        privateKey: config.privateKey ? fs.readFileSync(config.privateKey, 'utf8') : undefined
+      });
+      sftp = client;
+
+      this.outputChannel.appendLine('SFTP连接成功');
+
+      // 确定远程文件路径
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(localFilePath));
+      if (!workspaceFolder) {
+        throw new Error(`无法确定文件 ${localFilePath} 所属的工作区`);
+      }
+
+      // 计算相对于工作区根目录的路径
+      const relativePath = path.relative(workspaceFolder.uri.fsPath, localFilePath);
+      const remoteFilePath = path.posix.join(remoteRootPath.replace(/\\/g, '/'), relativePath.replace(/\\/g, '/'));
+
+      this.outputChannel.appendLine(`本地文件路径: ${localFilePath}`);
+      this.outputChannel.appendLine(`远程文件路径: ${remoteFilePath}`);
+
+      // 删除远程文件
+      await sftp.delete(remoteFilePath);
+      this.outputChannel.appendLine(`远程文件删除成功: ${remoteFilePath}`);
+    } catch (error) {
+      this.outputChannel.appendLine(`SFTP删除过程中发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
+      if (error instanceof Error && error.stack) {
+        this.outputChannel.appendLine(`错误堆栈: ${error.stack}`);
+      }
+      throw error;
+    } finally {
+      // 确保关闭连接
+      try {
+        if (sftp) {
+          await sftp.end();
+        }
+        this.outputChannel.appendLine('SFTP连接已关闭');
+      } catch (error) {
+        this.outputChannel.appendLine(`关闭SFTP连接时发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
+      }
     }
   }
 }
