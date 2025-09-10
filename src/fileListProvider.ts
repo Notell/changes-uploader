@@ -36,12 +36,10 @@ export class FileItem extends vscode.TreeItem {
    */
   private getFileIconPath(): vscode.ThemeIcon {
     switch (this.trackedFile.status) {
-    case 'staged':
-      return new vscode.ThemeIcon('check-circle');
-    case 'unstaged':
-      return new vscode.ThemeIcon('circle');
+    case 'modified':
+      return new vscode.ThemeIcon('pencil');
     case 'untracked':
-      return new vscode.ThemeIcon('question');
+      return new vscode.ThemeIcon('diff-added');
     default:
       return new vscode.ThemeIcon('file');
     }

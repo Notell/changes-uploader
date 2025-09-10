@@ -166,12 +166,13 @@ export class FileTracker {
           const fileName = path.basename(filePath);
 
           // 确定文件状态
-          let status = 'unstaged';
-          if (statusCode.startsWith('A') || statusCode.startsWith('M')) {
-            status = 'staged';
-          } else if (statusCode.startsWith('?')) {
+          let status;
+          if (statusCode === '??') {
             status = 'untracked';
+          } else {
+            status = 'modified';
           }
+          // this.outputChannel.appendLine(`文件状态: ${filePath} - ${statusCode}:${status}`);
 
           // 检查文件是否已存在于跟踪列表中
           const existingIndex = this.trackedFiles.findIndex(f => f.filePath === filePath);
