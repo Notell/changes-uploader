@@ -249,7 +249,7 @@ describe('FileTracker', () => {
       mockFs.statSync.mockReturnValue({ mtimeMs: Date.now() } as fs.Stats);
 
       // 更新文件状态
-      // await fileTracker.updateFileStatus();
+      await fileTracker.updateFileStatus();
 
       // 检查跟踪的文件
       const trackedFiles = fileTracker.getTrackedFiles();

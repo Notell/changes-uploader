@@ -428,10 +428,7 @@ describe('FileListProvider', () => {
   });
 
   describe('文件移除功能', () => {
-    it('应该在用户确认后移除文件', async (): Promise<void> => {
-      // 模拟用户确认移除
-      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('确定' as unknown as vscode.QuickPickItem));
-
+    it('应该直接移除文件', async (): Promise<void> => {
       const fileItem = new FileItem(mockTrackedFiles[0], vscode.TreeItemCollapsibleState.None);
 
       // 调用移除方法
@@ -441,23 +438,7 @@ describe('FileListProvider', () => {
       expect(mockFileTracker.removeFile).toHaveBeenCalledWith(mockTrackedFiles[0].filePath);
     });
 
-    it('应该在用户取消时不移除文件', async (): Promise<void> => {
-      // 模拟用户取消移除
-      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('取消' as unknown as vscode.QuickPickItem));
-
-      const fileItem = new FileItem(mockTrackedFiles[0], vscode.TreeItemCollapsibleState.None);
-
-      // 调用移除方法
-      await fileListProvider.removeFile(fileItem);
-
-      // 验证文件没有被移除
-      expect(mockFileTracker.removeFile).not.toHaveBeenCalled();
-    });
-
     it('应该在移除失败时显示错误消息', async (): Promise<void> => {
-      // 模拟用户确认移除
-      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('确定' as unknown as vscode.QuickPickItem));
-
       // 模拟移除失败
       mockFileTracker.removeFile.mockImplementationOnce(() => false);
 
