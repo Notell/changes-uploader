@@ -16,10 +16,7 @@
     "url": "https://github.com/example/changes-uploader.git"
   },
   "activationEvents": [
-    "onView:changes-uploader.fileList",
-    "onCommand:changes-uploader.uploadAllFiles",
-    "onCommand:changes-uploader.uploadFile",
-    "onCommand:changes-uploader.removeFile"
+    "onStartupFinished"
   ],
   "main": "out/extension.js",
   "contributes": {
@@ -68,16 +65,6 @@
           "light": "$(refresh)",
           "dark": "$(refresh)"
         }
-      },
-      {
-        "command": "changes-uploader.addTestFile",
-        "title": "添加测试文件",
-        "category": "Changes Uploader"
-      },
-      {
-        "command": "changes-uploader.showDebugInfo",
-        "title": "显示调试信息",
-        "category": "Changes Uploader"
       }
     ],
     "configuration": {
@@ -99,6 +86,21 @@
           "default": "",
           "description": "远程服务器上传文件根目录路径"
         }
+      }
+    }
+  },
+  "configuration": {
+    "properties": {
+      "changesUploader.logLevel": {
+        "type": "string",
+        "default": "info",
+        "enum": [
+          "error",
+          "warn",
+          "info",
+          "debug"
+        ],
+        "description": "日志输出级别"
       }
     }
   },

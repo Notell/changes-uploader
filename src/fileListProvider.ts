@@ -74,7 +74,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     
     // 添加文件状态变化监听器
     this.fileTracker.addStatusListener(() => {
-      this.refresh();
+      this.refresh('fileTrackerStatusChange');
     });
   }
 
@@ -111,8 +111,8 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
   /**
    * 刷新树视图
    */
-  public refresh(): void {
-    this.outputChannel.appendLine(`刷新树视图，当前跟踪的文件数量: ${this.fileTracker.getTrackedFiles().length}`);
+  public refresh(source: string): void {
+    this.outputChannel.appendLine(`[${source}] 刷新树视图，当前跟踪文件数: ${this.fileTracker.getTrackedFiles().length}`);
     this._onDidChangeTreeData.fire();
   }
 
@@ -266,7 +266,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
       if (success) {
         this.outputChannel.appendLine(`已移除文件: ${fileName}`);
         vscode.window.showInformationMessage(`已移除文件: ${fileName}`);
-        this.refresh();
+        this.refresh('fileRemoval');
       } else {
         this.outputChannel.appendLine(`移除文件失败: ${fileName}`);
         vscode.window.showErrorMessage(`移除文件失败: ${fileName}`);

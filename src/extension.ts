@@ -1,121 +1,97 @@
 import * as vscode from 'vscode';
+import * as childProcess from 'child_process';
+import { promisify } from 'util';
 import { FileTracker } from './fileTracker';
 import { FileListProvider } from './fileListProvider';
 
-// 创建输出通道
-const outputChannel = vscode.window.createOutputChannel('changes-uploader');
+// 将 child_process.exec 转换为 Promise 版本
+const exec = promisify(childProcess.exec);
 
-/**
- * 插件激活函数
- * @param context VS Code扩展上下文
- */
-export function activate(context: vscode.ExtensionContext): void {
-  console.log('Changes Uploader 插件已激活');
-  outputChannel.appendLine('Changes Uploader 插件已激活');
-  
-  // 添加一条测试日志，验证输出通道是否正常工作
-  outputChannel.appendLine('测试消息：输出通道已正确配置并正在工作');
+// 全局声明输出通道
+let outputChannel: vscode.OutputChannel;
 
-  // 创建文件跟踪器实例
-  const fileTracker = new FileTracker(context, outputChannel);
+let loading = false;
 
-  // 创建文件列表提供者实例
-  const fileListProvider = new FileListProvider(fileTracker, context, outputChannel);
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  outputChannel = vscode.window.createOutputChannel('Changes Uploader');
+  outputChannel.appendLine('插件激活开始...');
 
-  // 注册侧边栏视图
-  vscode.window.registerTreeDataProvider('changes-uploader.fileList', fileListProvider);
+  try {
+    // 创建文件跟踪器实例
+    const fileTracker = new FileTracker(context, outputChannel);
 
-  // 注册命令
-  context.subscriptions.push(
-    vscode.commands.registerCommand('changes-uploader.uploadAllFiles', () => {
-      fileListProvider.uploadAllFiles();
-    }),
-    
-    vscode.commands.registerCommand('changes-uploader.uploadFile', (file) => {
-      fileListProvider.uploadFile(file);
-    }),
-    
-    vscode.commands.registerCommand('changes-uploader.removeFile', (file) => {
-      fileListProvider.removeFile(file);
-    }),
-    
-    vscode.commands.registerCommand('changes-uploader.refreshFileList', async () => {
-      try {
-        // 显示刷新状态通知
-        vscode.window.showInformationMessage('正在刷新文件列表...');
-        
-        // 重新扫描Git状态
-        await fileTracker.updateFileStatus();
-        
-        // 刷新树视图
-        fileListProvider.refresh();
-        
-        // 显示刷新完成通知
-        vscode.window.showInformationMessage('文件列表刷新完成');
-      } catch (error) {
-        console.error('刷新文件列表失败:', error);
-        outputChannel.appendLine(`刷新文件列表失败: ${error instanceof Error ? error.message : '未知错误'}`);
-        vscode.window.showErrorMessage(`刷新文件列表失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      }
-    })
-  );
+    // 创建文件列表提供者实例
+    const fileListProvider = new FileListProvider(fileTracker, context, outputChannel);
 
-  // 监听Git事件，更新文件列表
-  vscode.workspace.onDidChangeTextDocument(() => {
+    // 注册侧边栏视图
+    vscode.window.registerTreeDataProvider('changes-uploader.fileList', fileListProvider);
+
+    // 创建树视图实例以便监听事件
+    const treeView = vscode.window.createTreeView('changes-uploader.fileList', {
+      treeDataProvider: fileListProvider
+    });
+    // 添加到上下文订阅
+    context.subscriptions.push(treeView);
+    context.subscriptions.push(
+      treeView.onDidChangeVisibility(e => {
+        outputChannel.appendLine(`侧边栏可见性变化: ${e.visible}`);
+        if (e.visible && !loading) {
+          try {
+            fileTracker.updateFileStatus();
+            loading = true;
+          } finally {
+            loading = false;
+          }
+        }
+      })
+    );
+
+    // 注册命令
+    const commands = [
+      vscode.commands.registerCommand('changes-uploader.uploadAllFiles', () => {
+        fileListProvider.uploadAllFiles();
+      }),
+
+      vscode.commands.registerCommand('changes-uploader.uploadFile', (file) => {
+        fileListProvider.uploadFile(file);
+      }),
+
+      vscode.commands.registerCommand('changes-uploader.removeFile', (file) => {
+        fileListProvider.removeFile(file);
+      }),
+
+      vscode.commands.registerCommand('changes-uploader.refreshFileList', async () => {
+        try {
+          vscode.window.showInformationMessage('正在刷新文件列表...');
+          await fileTracker.updateFileStatus();
+          fileListProvider.refresh('changes-uploader.refreshFileList');
+          vscode.window.showInformationMessage('文件列表刷新完成');
+        } catch (error) {
+          handleError('刷新文件列表失败', error);
+        }
+      }),
+    ];
+
+    // 将命令添加到订阅
+    commands.forEach(cmd => context.subscriptions.push(cmd));
+
+    // 初始化文件状态
     fileTracker.updateFileStatus();
-  });
 
-  vscode.workspace.onDidSaveTextDocument(() => {
-    fileTracker.updateFileStatus();
-  });
-
-  // 初始化时更新文件状态
-  fileTracker.updateFileStatus();
-
-  // 添加测试命令，用于手动添加测试文件到跟踪列表
-  context.subscriptions.push(
-    vscode.commands.registerCommand('changes-uploader.addTestFile', () => {
-      try {
-        // 这里我们需要直接访问trackedFiles数组，但它是私有的
-        // 所以我们需要一个临时的解决方法来测试视图功能
-        
-        // 显示提示信息
-        vscode.window.showInformationMessage(
-          'Changes Uploader: 请手动创建或修改文件以测试视图功能。\n' +
-          '插件会自动跟踪Git仓库中修改的文件。' +
-          '当前已找到 ' + fileTracker.getTrackedFiles().length + ' 个修改的文件'
-        );
-      } catch (error) {
-        console.error('添加测试文件失败:', error);
-        outputChannel.appendLine(`添加测试文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      }
-    })
-  );
-
-  // 注册测试命令到命令面板
-  context.subscriptions.push(
-    vscode.commands.registerCommand('changes-uploader.showDebugInfo', () => {
-      const trackedFiles = fileTracker.getTrackedFiles();
-      console.log('调试信息 - 跟踪的文件数量:', trackedFiles.length);
-      outputChannel.appendLine(`调试信息 - 跟踪的文件数量: ${trackedFiles.length}`);
-      console.log('跟踪的文件列表:', trackedFiles);
-      outputChannel.appendLine(`跟踪的文件列表: ${JSON.stringify(trackedFiles.map(f => f.fileName))}`);
-      
-      vscode.window.showInformationMessage(
-        '调试信息:\n' +
-        `- 工作区文件夹数量: ${vscode.workspace.workspaceFolders?.length || 0}\n` +
-        `- 跟踪的文件数量: ${trackedFiles.length}\n` +
-        '- 视图是否已注册: 是'
-      );
-    })
-  );
+    outputChannel.appendLine('插件激活成功');
+    console.log('Changes Uploader 插件已激活');
+  } catch (error) {
+    handleError('插件激活失败', error);
+  }
 }
 
-/**
- * 插件停用函数
- */
-export function deactivate(): void {
-  console.log('Changes Uploader 插件已停用');
-  outputChannel.appendLine('Changes Uploader 插件已停用');
+function handleError(context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  outputChannel.appendLine(`${context}: ${message}`);
+  vscode.window.showErrorMessage(`${context}: ${message}`);
+}
+
+export function deactivate() {
+  outputChannel.appendLine('插件已停用');
   outputChannel.dispose();
 }
