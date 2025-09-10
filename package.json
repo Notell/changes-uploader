@@ -53,6 +53,18 @@
           "when": "view == changes-uploader.fileList",
           "group": "navigation@2"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "changes-uploader.uploadFile",
+          "when": "view == changes-uploader.fileList && viewItem == fileItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "changes-uploader.removeFile",
+          "when": "view == changes-uploader.fileList && viewItem == fileItem",
+          "group": "inline@2"
+        }
       ]
     },
     "commands": [
@@ -63,11 +75,13 @@
       },
       {
         "command": "changes-uploader.uploadFile",
-        "title": "上传文件"
+        "title": "上传文件",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "changes-uploader.removeFile",
-        "title": "永久移除"
+        "title": "永久移除",
+        "icon": "$(trashcan)"
       },
       {
         "command": "changes-uploader.refreshFileList",

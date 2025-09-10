@@ -13,16 +13,16 @@ export class FileItem extends vscode.TreeItem {
     public readonly collapsibleState: vscode.TreeItemCollapsibleState
   ) {
     super(trackedFile.fileName, collapsibleState);
-    
+
     // 设置工具提示为完整文件路径
     this.tooltip = trackedFile.filePath;
-    
+
     // 设置上下文值以便在package.json中针对不同类型的节点定义命令
     this.contextValue = 'fileItem';
-    
+
     // 设置图标根据文件状态
     this.iconPath = this.getFileIconPath();
-    
+
     // 设置命令
     this.command = {
       title: '查看文件',
@@ -36,12 +36,12 @@ export class FileItem extends vscode.TreeItem {
    */
   private getFileIconPath(): vscode.ThemeIcon {
     switch (this.trackedFile.status) {
-    case 'modified':
-      return new vscode.ThemeIcon('pencil');
-    case 'untracked':
-      return new vscode.ThemeIcon('diff-added');
-    default:
-      return new vscode.ThemeIcon('file');
+      case 'modified':
+        return new vscode.ThemeIcon('pencil');
+      case 'untracked':
+        return new vscode.ThemeIcon('diff-added');
+      default:
+        return new vscode.ThemeIcon('file');
     }
   }
 
@@ -54,7 +54,7 @@ export class FileItem extends vscode.TreeItem {
 export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined | null | void> = new vscode.EventEmitter<FileItem | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<FileItem | undefined | null | void> = this._onDidChangeTreeData.event;
-  
+
   private fileTracker: FileTracker;
   private context: vscode.ExtensionContext;
   private outputChannel: vscode.OutputChannel;
@@ -69,7 +69,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     this.fileTracker = fileTracker;
     this.context = context;
     this.outputChannel = outputChannel;
-    
+
     // 添加文件状态变化监听器
     this.fileTracker.addStatusListener(() => {
       this.refresh('fileTrackerStatusChange');
@@ -99,7 +99,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
     // 获取所有跟踪的文件并转换为树项
     const trackedFiles = this.fileTracker.getTrackedFiles();
-    const fileItems = trackedFiles.map(file => 
+    const fileItems = trackedFiles.map(file =>
       new FileItem(file, vscode.TreeItemCollapsibleState.None)
     );
 
@@ -122,7 +122,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     try {
       // 获取文件路径
       const filePath = typeof file === 'string' ? file : file.trackedFile.filePath;
-      
+
       if (!fs.existsSync(filePath)) {
         this.outputChannel.appendLine(`文件不存在: ${filePath}`);
         vscode.window.showErrorMessage(`文件不存在: ${filePath}`);
@@ -151,7 +151,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
 
       await vscode.window.withProgress(progressOptions, async (progress) => {
         progress.report({ increment: 0 });
-        
+
         try {
           await this.sftpUploadFile(sshConfigPath, remoteHost, filePath, remoteRootPath);
           progress.report({ increment: 100 });
@@ -173,7 +173,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
    */
   public async uploadAllFiles(): Promise<void> {
     const trackedFiles = this.fileTracker.getTrackedFiles();
-    
+
     if (trackedFiles.length === 0) {
       this.outputChannel.appendLine('没有可上传的文件');
       vscode.window.showInformationMessage('没有可上传的文件');
@@ -250,25 +250,14 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
   public async removeFile(file: FileItem | string): Promise<void> {
     const filePath = typeof file === 'string' ? file : file.trackedFile.filePath;
     const fileName = typeof file === 'string' ? path.basename(filePath) : file.trackedFile.fileName;
-
-    const confirm = await vscode.window.showQuickPick(
-      ['确定', '取消'],
-      {
-        placeHolder: `确定要永久移除文件 "${fileName}" 吗？`,
-        canPickMany: false
-      }
-    );
-
-    if (confirm === '确定') {
-      const success = this.fileTracker.removeFile(filePath);
-      if (success) {
-        this.outputChannel.appendLine(`已移除文件: ${fileName}`);
-        vscode.window.showInformationMessage(`已移除文件: ${fileName}`);
-        this.refresh('fileRemoval');
-      } else {
-        this.outputChannel.appendLine(`移除文件失败: ${fileName}`);
-        vscode.window.showErrorMessage(`移除文件失败: ${fileName}`);
-      }
+    const success = this.fileTracker.removeFile(filePath);
+    if (success) {
+      this.outputChannel.appendLine(`已移除文件: ${fileName}`);
+      vscode.window.showInformationMessage(`已移除文件: ${fileName}`);
+      this.refresh('fileRemoval');
+    } else {
+      this.outputChannel.appendLine(`移除文件失败: ${fileName}`);
+      vscode.window.showErrorMessage(`移除文件失败: ${fileName}`);
     }
   }
 
@@ -281,11 +270,11 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
    */
   private async sftpUploadFile(sshConfigPath: string, remoteHost: string, localFilePath: string, remoteRootPath: string): Promise<void> {
     const sftp = new Client();
-    
+
     try {
       // 读取SSH配置文件
       const sshConfig = this.readSSHConfig(sshConfigPath);
-      
+
       // 连接到远程服务器
       await sftp.connect({
         host: remoteHost,
@@ -304,7 +293,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
       // 计算相对于工作区根目录的路径
       const relativePath = path.relative(workspaceFolder.uri.fsPath, localFilePath);
       const remoteFilePath = path.posix.join(remoteRootPath.replace(/\\/g, '/'), relativePath.replace(/\\/g, '/'));
-      
+
       // 确保远程目录存在
       const remoteDir = path.posix.dirname(remoteFilePath);
       try {
