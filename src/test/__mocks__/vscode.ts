@@ -33,8 +33,32 @@ export namespace TreeItemCollapsibleState {
   export const EXPANDED = 2;
 }
 
+export class EventEmitter<T> {
+  event: (listener: (e: T) => void) => { dispose(): void };
+  
+  constructor() {
+    this.event = jest.fn();
+  }
+  
+  fire(): void {}
+  dispose(): void {}
+}
+
+export type Event<T> = (listener: (e: T) => void) => { dispose(): void };
+
+
 export class TreeItem {
-  constructor(public label: string, public collapsibleState: number) {}
+  label: string;
+  collapsibleState: number;
+  tooltip?: string;
+  contextValue?: string;
+  iconPath?: string | ThemeIcon;
+  command?: ICommand;
+  
+  constructor(label: string, collapsibleState: number) {
+    this.label = label;
+    this.collapsibleState = collapsibleState;
+  }
 }
 
 export class ThemeIcon {
@@ -43,6 +67,12 @@ export class ThemeIcon {
 
 export namespace ProgressLocation {
   export const NOTIFICATION = 15;
+}
+
+export interface ICommand {
+  title: string;
+  command: string;
+  arguments?: unknown[];
 }
 
 export namespace Uri {

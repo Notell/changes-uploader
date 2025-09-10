@@ -18,7 +18,8 @@ jest.mock('vscode', () => ({
   },
   workspace: {
     getConfiguration: jest.fn(),
-    getWorkspaceFolder: jest.fn()
+    getWorkspaceFolder: jest.fn(),
+    onDidSaveTextDocument: jest.fn().mockReturnValue({ dispose: jest.fn() })
   },
   TreeItemCollapsibleState: {
     None: 0,
@@ -34,7 +35,35 @@ jest.mock('vscode', () => ({
   },
   Uri: {
     file: (filePath: string): { fsPath: string } => ({ fsPath: filePath })
-  }
+  },
+  TreeItem: class TreeItem {
+    label: string;
+    collapsibleState: number;
+    tooltip?: string;
+    contextValue?: string;
+    iconPath?: string | { name: string };
+    command?: { title: string; command: string; arguments?: unknown[] };
+    
+    constructor(label: string, collapsibleState: number) {
+      this.label = label;
+      this.collapsibleState = collapsibleState;
+    }
+  },
+  EventEmitter: class EventEmitter<T> {
+    event: (listener: (e: T) => void) => { dispose(): void };
+    constructor() {
+      this.event = jest.fn().mockReturnValue({ dispose: jest.fn() });
+    }
+    fire(): void {
+      // 模拟触发事件
+      const listeners = (this.event as jest.Mock).mock?.calls?.[0]?.[0] || [];
+      if (typeof listeners === 'function') {
+        listeners();
+      }
+    }
+    dispose(): void {}
+  },
+  Event: jest.fn()
 }));
 
 // Mock file system
@@ -42,14 +71,20 @@ jest.mock('fs');
 const mockFs = fs as jest.Mocked<typeof fs>;
 
 // Mock SSH2 SFTP Client
-jest.mock('ssh2-sftp-client', () => ({
-  Client: jest.fn().mockImplementation(() => ({
+jest.mock('ssh2-sftp-client', () => {
+  const mockClient = jest.fn().mockImplementation(() => ({
     connect: jest.fn(),
     end: jest.fn(),
     put: jest.fn(),
     mkdir: jest.fn()
-  }))
-}));
+  }));
+  
+  return {
+    __esModule: true,
+    default: mockClient,
+    Client: mockClient
+  };
+});
 const mockShowErrorMessage = vscode.window.showErrorMessage as jest.MockedFunction<typeof vscode.window.showErrorMessage>;
 const mockShowInformationMessage = vscode.window.showInformationMessage as jest.MockedFunction<typeof vscode.window.showInformationMessage>;
 const mockWithProgress = vscode.window.withProgress as jest.MockedFunction<typeof vscode.window.withProgress>;
@@ -122,16 +157,6 @@ describe('FileListProvider', () => {
     // 重置所有mock
     jest.clearAllMocks();
 
-    // 创建模拟的文件跟踪器
-    const fileTracker = new FileTracker(mockContext, mockOutputChannel);
-    mockFileTracker = jest.mocked(fileTracker);
-    mockFileTracker.getTrackedFiles.mockReturnValue(mockTrackedFiles);
-    mockFileTracker.removeFile.mockReturnValue(true);
-    mockFileTracker.addStatusListener.mockImplementation(() => {});
-    mockFileTracker.removeStatusListener.mockImplementation(() => {});
-    mockFileTracker.isFileTracked.mockReturnValue(true);
-    mockFileTracker.updateFileStatus.mockResolvedValue(undefined);
-
     // 创建模拟的扩展上下文
     mockContext = {
       subscriptions: [],
@@ -141,7 +166,7 @@ describe('FileListProvider', () => {
         keys: jest.fn().mockReturnValue([])
       },
       globalState: {
-        get: jest.fn(),
+        get: jest.fn().mockReturnValue([]),
         update: jest.fn(),
         keys: jest.fn().mockReturnValue([]),
         setKeysForSync: jest.fn()
@@ -235,6 +260,24 @@ describe('FileListProvider', () => {
         canSendRequest: jest.fn()
       }
     };
+
+    // 创建模拟的文件跟踪器
+    mockFileTracker = {
+      getTrackedFiles: jest.fn().mockReturnValue(mockTrackedFiles),
+      removeFile: jest.fn().mockImplementation(() => {
+        // 模拟成功移除文件
+        return true;
+      }),
+      addStatusListener: jest.fn().mockImplementation(() => {}),
+      removeStatusListener: jest.fn().mockImplementation(() => {}),
+      isFileTracked: jest.fn().mockReturnValue(true),
+      updateFileStatus: jest.fn().mockResolvedValue(undefined),
+      loadTrackedFiles: jest.fn(),
+      setupGitCommitListener: jest.fn(),
+      handleGitCommit: jest.fn(),
+      addTrackedFile: jest.fn(),
+      clearAllTrackedFiles: jest.fn()
+    } as unknown as jest.Mocked<FileTracker>;
 
     // 创建FileListProvider实例
     fileListProvider = new FileListProvider(mockFileTracker, mockContext, mockOutputChannel);
@@ -387,7 +430,7 @@ describe('FileListProvider', () => {
   describe('文件移除功能', () => {
     it('应该在用户确认后移除文件', async (): Promise<void> => {
       // 模拟用户确认移除
-      mockShowQuickPick.mockResolvedValue({ label: '确定' } as vscode.QuickPickItem);
+      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('确定' as unknown as vscode.QuickPickItem));
 
       const fileItem = new FileItem(mockTrackedFiles[0], vscode.TreeItemCollapsibleState.None);
 
@@ -400,7 +443,7 @@ describe('FileListProvider', () => {
 
     it('应该在用户取消时不移除文件', async (): Promise<void> => {
       // 模拟用户取消移除
-      mockShowQuickPick.mockResolvedValue({ label: '取消' } as vscode.QuickPickItem);
+      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('取消' as unknown as vscode.QuickPickItem));
 
       const fileItem = new FileItem(mockTrackedFiles[0], vscode.TreeItemCollapsibleState.None);
 
@@ -413,10 +456,10 @@ describe('FileListProvider', () => {
 
     it('应该在移除失败时显示错误消息', async (): Promise<void> => {
       // 模拟用户确认移除
-      mockShowQuickPick.mockResolvedValue({ label: '确定' } as vscode.QuickPickItem);
+      mockShowQuickPick.mockImplementationOnce(() => Promise.resolve('确定' as unknown as vscode.QuickPickItem));
 
       // 模拟移除失败
-      mockFileTracker.removeFile.mockReturnValue(false);
+      mockFileTracker.removeFile.mockImplementationOnce(() => false);
 
       const fileItem = new FileItem(mockTrackedFiles[0], vscode.TreeItemCollapsibleState.None);
 
