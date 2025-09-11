@@ -2,7 +2,7 @@
   "name": "changes-uploader",
   "displayName": "Changes Uploader",
   "description": "VS Code Git 变更上传插件，用于管理Git仓库中已修改文件的上传与跟踪",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "notell",
   "icon": "resources/icon.png",
   "engines": {
