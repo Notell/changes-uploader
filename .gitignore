@@ -31,6 +31,7 @@ out
 coverage
 *.lcov
 .vscode-test
+test-package
 
 # Environment variables
 .env
