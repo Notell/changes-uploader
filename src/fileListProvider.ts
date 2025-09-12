@@ -313,7 +313,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
       }
 
       // 上传文件
-      await sftp.put(localFilePath, remoteFilePath);
+      await sftp.put(localFilePath, remoteFilePath, { writeStreamOptions: { flags: 'w' } });
       this.outputChannel.appendLine(`文件上传成功: ${localFilePath} -> ${remoteFilePath}`);
     } catch (error) {
       this.outputChannel.appendLine(`SFTP上传过程中发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -394,7 +394,7 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
       }
 
       // 上传文件
-      await sftp.put(localFilePath, remoteFilePath);
+      await sftp.put(localFilePath, remoteFilePath, { writeStreamOptions: { flags: 'w' } });
       this.outputChannel.appendLine(`文件上传成功: ${localFilePath} -> ${remoteFilePath}`);
     } catch (error) {
       this.outputChannel.appendLine(`SFTP上传过程中发生错误: ${error instanceof Error ? error.message : '未知错误'}`);
