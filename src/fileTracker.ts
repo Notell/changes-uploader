@@ -135,7 +135,7 @@ export class FileTracker {
       const statusMsg = this.trackedFiles.length > 0
         ? `已找到 ${this.trackedFiles.length} 个修改的文件`
         : '当前没有修改的文件';
-      vscode.window.showInformationMessage(`Changes Uploader: ${statusMsg}`);
+      this.outputChannel.appendLine(`Changes Uploader: ${statusMsg}`);
 
       this.saveTrackedFiles();
       this.notifyStatusChange();

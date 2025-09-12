@@ -43,10 +43,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
       vscode.commands.registerCommand('changes-uploader.refreshFileList', async () => {
         try {
-          vscode.window.showInformationMessage('正在刷新文件列表...');
+          outputChannel.appendLine('正在刷新文件列表...');
           await fileTracker.updateFileStatus();
           fileListProvider.refresh('changes-uploader.refreshFileList');
-          vscode.window.showInformationMessage('文件列表刷新完成');
+          outputChannel.appendLine('文件列表刷新完成');
         } catch (error) {
           handleError('刷新文件列表失败', error);
         }

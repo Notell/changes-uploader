@@ -163,7 +163,6 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
           await this.sftpUploadFile(sshConfigPath, remoteHost, filePath, remoteRootPath);
           progress.report({ increment: 100 });
           this.outputChannel.appendLine(`文件上传成功: ${path.basename(filePath)}`);
-          vscode.window.showInformationMessage(`文件上传成功: ${path.basename(filePath)}`);
         } catch (error) {
           this.outputChannel.appendLine(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
           vscode.window.showErrorMessage(`文件上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -252,7 +251,6 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
         // 完成上传
         progress.report({ increment: 100, message: '上传完成' });
         this.outputChannel.appendLine(`批量上传完成，成功上传 ${uploadedCount}/${totalFiles} 个文件`);
-        vscode.window.showInformationMessage(`批量上传完成，成功上传 ${uploadedCount}/${totalFiles} 个文件`);
       } catch (error) {
         this.outputChannel.appendLine(`批量上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
         vscode.window.showErrorMessage(`批量上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -276,7 +274,6 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
     const success = this.fileTracker.removeFile(filePath);
     if (success) {
       this.outputChannel.appendLine(`已移除文件: ${fileName}`);
-      vscode.window.showInformationMessage(`已移除文件: ${fileName}`);
       this.refresh('fileRemoval');
     } else {
       this.outputChannel.appendLine(`移除文件失败: ${fileName}`);
@@ -569,7 +566,6 @@ export class FileListProvider implements vscode.TreeDataProvider<FileItem> {
           await this.sftpDeleteFile(sshConfigPath, remoteHost, file.trackedFile.filePath, remoteRootPath);
           progress.report({ increment: 100 });
           this.outputChannel.appendLine(`远程文件删除成功: ${fileName}`);
-          vscode.window.showInformationMessage(`远程文件删除成功: ${fileName}`);
         } catch (error) {
           this.outputChannel.appendLine(`远程文件删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
           vscode.window.showErrorMessage(`远程文件删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
